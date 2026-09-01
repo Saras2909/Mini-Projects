@@ -8,6 +8,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import statsmodels.api as sm
+import joblib as jb
+import pathlib
+
+# Directory where this script and model files are saved
+MODEL_DIR = pathlib.Path(__file__).resolve().parent
 
 
 # Set style for better visualizations
@@ -15,7 +20,14 @@ sns.set_style("whitegrid")
 plt.rcParams['figure.figsize'] = (12, 6)
 
 url = "https://raw.githubusercontent.com/selva86/datasets/master/BostonHousing.csv"
-df = pd.read_csv(url)
+try:
+    df = pd.read_csv(url)
+except Exception:
+    import requests
+    import io
+    response = requests.get(url, timeout=10)
+    df = pd.read_csv(io.StringIO(response.text))
+
 
 
 X = df.drop(columns=["medv"])
@@ -116,6 +128,11 @@ plt.show()
 X_sm = sm.add_constant(X_scaled_df)
 ols_model = sm.OLS(y, X_sm).fit()
 print(ols_model.summary())
+
+
+jb.dump(model, MODEL_DIR / "boston_model.pkl")
+jb.dump(scaler, MODEL_DIR / "boston_scaler.pkl")
+jb.dump(list(X_filtered.columns), MODEL_DIR / "boston_features.pkl")
 
 
 

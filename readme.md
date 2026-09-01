@@ -1,58 +1,75 @@
 # Boston Housing Price Predictor
 
-A Linear Regression machine learning project designed to predict housing prices (`medv`) using the Boston Housing Dataset while addressing multicollinearity and evaluating feature importance.
+A Linear Regression machine learning project and FastAPI service designed to predict housing prices (`medv`) using the Boston Housing Dataset while addressing multicollinearity, scaling features, and serving inference endpoints.
 
-# Dataset
+## Dataset
 URL: https://raw.githubusercontent.com/selva86/datasets/master/BostonHousing.csv
+
+---
 
 ## Project Workflow
 
-1. **Data Ingestion**
-   - The dataset is loaded directly from a remote CSV source.
-   - Features (`X`) and target variable (`medv` / `y`) are separated.
+1. **Data Ingestion & Filtering**
+   - Loads the dataset and separates target variable `medv` from feature matrix `X`.
+   - Calculates correlation matrix with threshold of `0.85` to drop collinear features (e.g. `tax`).
+   - Preserves removed features in a dedicated `Removed_Features` DataFrame.
 
-2. **Exploratory Data Analysis & Correlation Removal**
-   - Computes an absolute correlation matrix and visualizes feature interactions using a Seaborn heatmap.
-   - Identifies feature pairs exceeding a correlation threshold of `0.85` (e.g., `tax` and `rad`).
-   - Preserves dropped features in a dedicated `Removed_Features` DataFrame to ensure no data is lost.
-   - Drops highly correlated features from the main feature set to prevent multicollinearity.
-
-3. **Feature Scaling & VIF Analysis**
+2. **Feature Scaling & VIF Analysis**
    - Standardizes remaining features using `StandardScaler`.
-   - Computes Variance Inflation Factor (VIF) and matrix condition number to verify multicollinearity reduction.
+   - Evaluates Variance Inflation Factor (VIF) and statsmodels OLS summary.
 
-4. **Model Training & Evaluation**
-   - Splits the data into 80% Training and 20% Testing sets.
-   - Fits a `LinearRegression` model on the scaled features using scikit learn.
-   - Evaluates model performance using $R^2$ Score, Root Mean Squared Error (RMSE), and Mean Absolute Error (MAE).
-   - Runs `statsmodels` OLS regression for statistical summary and coefficient p-values.
+3. **Model Training & Artifact Serialization**
+   - Fits a `LinearRegression` model on scaled training features.
+   - Serializes `boston_model.pkl`, `boston_scaler.pkl`, and `boston_features.pkl` directly inside the `Models/` directory using `joblib`.
 
-5. **Visualization**
-   - Plots Actual vs. Predicted house prices for both Training and Test datasets.
+4. **FastAPI Web Service (`Src/server.py`)**
+   - Serves prediction REST API endpoints powered by FastAPI and Pydantic validation.
+
+---
 
 ## Project Structure
 
 ```
 Boston/
 ├── Models/
-│   ├── predictor.py         # Main script for data processing, model training & evaluation
-│   └── Regression.ipynb     # Jupyter Notebook for exploratory analysis
-├── server.py                # FastAPI entry point
-├── .gitignore               # Ignored files (notebooks, cache, etc.)
+│   ├── predictor.py         # Main script for data processing, training & serialization
+│   ├── Regression.ipynb     # Jupyter Notebook for exploratory analysis
+│   ├── boston_model.pkl     # Trained Linear Regression model
+│   ├── boston_scaler.pkl    # Fitted StandardScaler transformer
+│   └── boston_features.pkl  # List of selected feature names
+├── Src/
+│   └── server.py            # FastAPI application entry point
+├── .gitignore               # Git ignore rules
 └── readme.md                # Project documentation
 ```
 
+---
+
 ## How to Run
 
-### Prerequisites
-Install the required dependencies:
+### 1. Install Dependencies
 ```bash
-pip install pandas numpy matplotlib seaborn scikit-learn statsmodels fastapi
+pip install pandas numpy matplotlib seaborn scikit-learn statsmodels fastapi uvicorn pydantic joblib
 ```
 
-### Execution
-Run the main predictor script:
+### 2. Train and Save Model Artifacts
+Run the predictor script to process data, train the model, and save `.pkl` files in `Models/`:
 ```bash
 python Models/predictor.py
 ```
 
+### 3. Start the FastAPI Server
+Launch the API server using Uvicorn from the project root:
+```bash
+uvicorn Src.server:app --reload
+```
+
+---
+
+## API Endpoints
+
+- **`GET /`**: Health check and welcome message.
+- **`GET /model`**: Returns model specifications, selected features list, and average error margin.
+- **`POST /predict`**: Accepts JSON payload with feature values and returns estimated house price in USD.
+- **`POST /predict_file`**: Accepts CSV file upload with house samples and returns downloadable CSV with predicted prices.
+- **Interactive Documentation**: Access OpenAPI docs at `http://127.0.0.1:8000/docs`.
